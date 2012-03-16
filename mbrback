@@ -1,0 +1,219 @@
+#!/bin/bash
+# Script Name: mbrback    http://igurublog.wordpress.com/downloads/script-mbrback/ 
+# Requires: util-linux
+# License: GNU GENERAL PUBLIC LICENSE Version 3 http://www.gnu.org/licenses/gpl-3.0.txt
+
+# do not change these variables!
+argsneeded=1
+restoretype=""
+back=""
+devname=""
+
+help ()
+{
+	echo 'mbrback version 1.0.0'
+	echo 'Creates MBR and partition table backups of DEVICE named:'
+	echo '    HOST-DEVICE-MBR-back'
+	echo '    HOST-DEVICE-partition-back.sf'
+	echo 'Restores MBR and partition table from specified backup file'
+	echo 'Usage: sudo mbrback DEVICE [BACKUPFOLDER]'
+	echo '       (creates backup files of DEVICE)'
+	echo 'Usage: sudo mbrback --restoreboot DEVICE [BACKUPFILE]'
+	echo '       (restores MBR boot code only)'
+	echo 'Usage: sudo mbrback --restorefullmbr DEVICE [BACKUPFILE]'
+	echo '       (restores entire MBR)'
+	echo 'Usage: sudo mbrback --restorepart DEVICE [BACKUPFILE.sf]'
+	echo '       (restores partition table)'
+	echo 'Example: sudo mbrback sda'
+	echo '         (creates MBR and partition table backups of'
+	echo '          /dev/sda in current folder)'
+	echo 'Example: sudo mbrback /dev/sda'
+	echo '         (creates MBR and partition table backups of'
+	echo '          /dev/sda in current folder)'
+	echo 'Example: sudo mbrback sda /mybackups'
+	echo '         (creates MBR and partition table backups of'
+	echo '          /dev/sda in /mybackups)'
+	echo 'Example: sudo mbrback --restoreboot sda /mybackups/sys-sda-MBR-back'
+	echo '         (restores MBR boot code of /dev/sda using'
+	echo '          /mybackups/sys-sda-MBR-back)'
+	echo 'Example: sudo mbrback --restorepart sda /mybackups/sys-sda-partition-back.sf'
+	echo '         (restores partition table of /dev/sda using sfdisk file '
+	echo '          /mybackups/sys-sda-partition-back.sf)'
+	echo
+	echo "When restoring, mbrback will always tell you what it's going to do"
+	echo "and allow you to abort before it writes to disk."
+	echo
+	echo "Instructions and updates:"
+	echo "http://igurublog.wordpress.com/downloads/script-mbrback/"
+	echo
+}
+
+index=0
+while [ "$1" != "" ];
+do
+	if [ "${1:0:1}" = "-" ]; then
+		case "$1" in
+			--help | -help )
+				help
+				exit
+				;;
+			--restoreboot )
+				if [ "$restoretype" = "" ]; then
+					restoretype="boot"
+				else
+					echo 'mbrback: can only use one restore option'
+					exit 1
+				fi
+				;;
+			--restorefullmbr )
+				if [ "$restoretype" = "" ]; then
+					restoretype="fullmbr"
+				else
+					echo 'mbrback: can only use one restore option'
+					exit 1
+				fi
+				;;
+			--restorepart )
+				if [ "$restoretype" = "" ]; then
+					restoretype="part"
+				else
+					echo 'mbrback: can only use one restore option'
+					echo
+					help
+					exit 1
+				fi
+				;;
+			* )
+				echo "mbrback: Unknown option $1"
+				echo
+				help
+				exit 1
+				;;
+		esac
+	else
+		let "index+=1"
+		case $index in
+			1 )
+				devname=`basename "$1"`
+				if [ ! -b "/dev/$devname" ]; then
+					echo "mbrback: /dev/$devname is not a valid device"
+					exit 1
+				fi
+				;;
+			2 )
+				back="$1"
+				;;
+			* )
+				echo "mbrback: Too many arguments"
+				exit 1
+				;;
+		esac
+	fi
+	shift
+done
+if (( index < $argsneeded )) || [ "$devname" = "" ]; then
+	echo "mbrback: missing arguments"
+	echo
+	help
+	exit 1
+fi
+
+if [ `whoami` != "root" ]; then
+	echo 'mbrback: must be run with sudo'
+	exit 1
+fi
+
+sysname=$HOSTNAME
+
+if [ "$restoretype" = "" ]; then
+	# create MBR and table backups
+	if [ "$back" = "" ]; then
+		back=`pwd`
+	else
+		if [ ! -d "$back" ]; then
+			echo "mbrback: $back is not a valid backup folder"
+			exit 1
+		fi
+	fi
+	dd if=/dev/$devname of="$back/$sysname-$devname-MBR-back" bs=512 count=1
+	sfdisk -d /dev/$devname > "$back/$sysname-$devname-partition-back.sf"
+else
+	# restore
+	if [ "$back" = "" ]; then
+		echo "mbrback: you must specify a backup file"
+		exit 1
+	elif [ ! -f "$back" ]; then
+		echo "mbrback: file not found - $back"
+		exit 1
+	fi
+	if [ "$restoretype" = "boot" ] || [ "$restoretype" = "fullmbr" ]; then
+		sfhead=`head --bytes=21 "$back"`
+		if [ "$sfhead" = "# partition table of " ]; then
+			echo "mbrback: $back is not an MBR backup file"
+			exit 1
+		fi
+		if [ "$(stat -c%s "$back")" != "512" ]; then
+			echo "mbrback: $back is wrong size for an MBR backup file"
+			exit 1
+		fi
+	fi
+	if [ "$restoretype" = "part" ]; then
+		sfhead=`head --bytes=21 "$back"`
+		if [ "$sfhead" != "# partition table of " ]; then
+			echo "mbrback: $back not a valid sfdisk backup file"
+			exit 1
+		fi
+		echo
+		echo "You are about to overwrite your /dev/$devname partition table with"
+		echo "the contents of $back"
+		echo
+		echo "WARNING!!! Unless the partition table has been damaged or you"
+		echo "           have accidentally deleted a partition, you should abort."
+		echo
+		echo "WARNING!!! Restoring the partition table from an out-of-date backup"
+		echo "           may render ALL the data on your drive unreadable."
+		echo 
+		echo "WARNING!!! Do not proceed if /dev/$devname is mounted."
+		echo
+	elif [ "$restoretype" = "boot" ]; then
+		echo
+		echo "You are about to overwrite your /dev/$devname MBR boot code with"
+		echo "the contents of $back"
+		echo 
+		echo "WARNING: Restoring your MBR boot code from an out-of-date MBR backup"
+		echo "         file may render your computer unbootable."
+	elif [ "$restoretype" = "fullmbr" ]; then
+		echo
+		echo "You are about to overwrite your ENTIRE /dev/$devname MBR with"
+		echo "the contents of $back"
+		echo
+		echo "WARNING!!! The full MBR contains both boot code and the drive's"
+		echo "           partition table.  Unless the partition table has been"
+		echo "           damaged or you have accidentally deleted a partition"
+		echo "           you should abort and restore boot code only with"
+		echo "           --restoreboot instead."
+		echo
+		echo "WARNING!!! Restoring your full MBR from an out-of-date MBR backup may"
+		echo "           render your computer unbootable and ALL the data on your"
+		echo "           drive unreadable."
+		echo 
+		echo "WARNING!!! Do not proceed if /dev/$devname is mounted."
+	fi
+	echo
+	echo "Do you want to proceed? (you must type yes to proceed)"
+	read s1
+	if [ "$s1" != "yes" ]; then
+		echo "mbrback: no changes made - aborted at user request"
+		exit 2
+	fi
+	if [ "$restoretype" = "part" ]; then
+		sfdisk /dev/$devname < "$back"
+	elif [ "$restoretype" = "boot" ]; then
+		dd if="$back" of=/dev/$devname bs=448 count=1
+	elif [ "$restoretype" = "fullmbr" ]; then
+		dd if="$back" of=/dev/$devname bs=512 count=1
+	fi
+	echo "/dev/$devname was updated"
+fi
+
+exit 0

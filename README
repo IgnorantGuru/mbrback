@@ -1,0 +1,44 @@
+README for mbrback
+
+
+OVERVIEW
+
+mbrback creates a backup of your hard drive’s MBR and its partition table. 
+You can then use mbrback to restore the MBR boot code, full MBR, or 
+partition table from the backup files.
+
+Homepage & Instructions:
+    http://igurublog.wordpress.com/downloads/script-mbrback/
+
+Downloads:
+    https://github.com/IgnorantGuru/mbrback
+    https://github.com/IgnorantGuru/sedname/tree/master/packages
+
+
+INSTALLATION
+
+To install:
+
+    wget https://github.com/IgnorantGuru/mbrback/raw/master/mbrback
+    sudo install mbrback /usr/local/bin/mbrback
+
+To remove:
+    
+    sudo rm /usr/local/bin/mbrback
+
+
+LICENSE
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
