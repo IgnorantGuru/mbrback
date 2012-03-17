@@ -2,6 +2,7 @@ README for mbrback
 
 
 OVERVIEW
+========
 
 mbrback creates a backup of your hard drive’s MBR and its partition table. 
 You can then use mbrback to restore the MBR boot code, full MBR, or 
@@ -11,11 +12,15 @@ Homepage & Instructions:
     http://igurublog.wordpress.com/downloads/script-mbrback/
 
 Downloads:
-    https://github.com/IgnorantGuru/mbrback
-    https://github.com/IgnorantGuru/sedname/tree/master/packages
+    https://github.com/IgnorantGuru/mbrback/tags
+    https://github.com/IgnorantGuru/mbrback/tree/master/packages
+
+Bug Reports:
+    https://github.com/IgnorantGuru/mbrback/issues
 
 
 INSTALLATION
+============
 
 To install:
 
@@ -28,6 +33,7 @@ To remove:
 
 
 LICENSE
+=======
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
